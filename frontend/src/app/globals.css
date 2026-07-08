@@ -63,6 +63,28 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+button, input, textarea, select {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(37,99,235,0.18);
+}
+
+.ge-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.ge-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
 * {
   box-sizing: border-box;
 }

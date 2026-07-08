@@ -22,6 +22,9 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
       <div className="brand">
         <div className="logo">GE</div>
         <div className="title">GrowEasy</div>
+        <button onClick={onToggle} className="collapse-toggle" aria-label="Toggle sidebar">
+          {collapsed ? '›' : '‹'}
+        </button>
       </div>
 
       <div className="workspace">Workspace: Demo</div>
@@ -34,22 +37,23 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
         ))}
       </nav>
 
-      <div className="bottom">
-        <button onClick={onToggle} className="toggle">{collapsed ? '›' : '‹'}</button>
-      </div>
-
       <style jsx>{`
-        .ge-sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;padding:20px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column}
+        .ge-sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;padding:20px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:width .2s ease}
         .collapsed{width:72px}
-        .brand{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-        .logo{width:40px;height:40px;border-radius:8px;background:linear-gradient(180deg,#2563eb,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
-        .title{font-weight:700}
-        .workspace{padding:8px;background:var(--input);border-radius:8px;margin-bottom:12px;font-size:13px;color:var(--muted)}
-        .nav{display:flex;flex-direction:column;gap:6px}
-        .nav-item{padding:8px 10px;border-radius:8px;color:var(--text);text-decoration:none}
+        .brand{display:flex;align-items:center;gap:12px;margin-bottom:15px}
+        .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(180deg,#2563eb,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+        .title{font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .collapse-toggle{margin-left:auto;background:transparent;border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:12px;cursor:pointer;transition:background .2s}
+        .collapse-toggle:hover{background:var(--input)}
+        .workspace{padding:10px;background:var(--input);border-radius:12px;margin-bottom:16px;font-size:13px;color:var(--muted)}
+        .nav{display:flex;flex-direction:column;gap:8px}
+        .nav-item{padding:12px 14px;border-radius:12px;color:var(--text);text-decoration:none;transition:background .2s,color .2s}
         .nav-item.active{background:var(--accent);color:#fff}
-        .bottom{margin-top:auto}
-        .toggle{background:transparent;border:1px solid var(--border);padding:6px;border-radius:6px;color:var(--text)}
+        .nav-item:hover{background:var(--input)}
+        .collapsed .title{display:none}
+        .collapsed .workspace{display:none}
+        .collapsed .nav-item{justify-content:center;padding-left:0;padding-right:0;text-align:center}
+        .collapsed .brand{justify-content:flex-start}
       `}</style>
     </aside>
   );

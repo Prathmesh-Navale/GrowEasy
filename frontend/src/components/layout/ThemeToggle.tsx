@@ -5,11 +5,17 @@ import { useEffect, useState } from 'react';
 
 type Theme = 'light' | 'gray' | 'dark';
 
-const themes: Array<{ value: Theme; label: string; icon: typeof Sun }> = [
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'gray', label: 'Gray', icon: CircleDot },
-  { value: 'dark', label: 'Dark', icon: Moon },
-];
+const themeOrder: Theme[] = ['light', 'gray', 'dark'];
+const themeIcons = {
+  light: Sun,
+  gray: CircleDot,
+  dark: Moon,
+};
+const themeLabels = {
+  light: 'Light Mode',
+  gray: 'Gray Mode',
+  dark: 'Dark Mode',
+};
 
 const storageKey = 'groweasy-theme';
 
@@ -30,34 +36,29 @@ export default function ThemeToggle() {
     applyTheme(preferred);
   }, []);
 
-  const handleChange = (value: Theme) => {
-    setTheme(value);
-    applyTheme(value);
+  const toggleTheme = () => {
+    const nextTheme = themeOrder[(themeOrder.indexOf(theme) + 1) % themeOrder.length];
+    setTheme(nextTheme);
+    applyTheme(nextTheme);
   };
 
+  const Icon = themeIcons[theme];
+
   return (
-    <div className="theme-switcher" role="group" aria-label="Theme switcher">
-      {themes.map((item) => {
-        const Icon = item.icon;
-        return (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => handleChange(item.value)}
-            className={`theme-button ${theme === item.value ? 'active' : ''}`}
-            aria-pressed={theme === item.value}
-            aria-label={`${item.label} theme`}
-          >
-            <Icon size={18} />
-          </button>
-        );
-      })}
+    <button
+      type="button"
+      onClick={toggleTheme}
+      className="theme-toggle-button"
+      title={`Switch theme (current: ${themeLabels[theme]})`}
+      aria-label="Toggle theme"
+    >
+      <Icon size={18} />
+      <span className="theme-label">{themeLabels[theme]}</span>
       <style jsx>{`
-        .theme-switcher{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:4px}
-        .theme-button{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:0;background:transparent;color:var(--text);cursor:pointer;transition:background .2s,color .2s}
-        .theme-button:hover{background:rgba(255,255,255,0.12)}
-        .theme-button.active{background:var(--accent);color:var(--surface)}
+        .theme-toggle-button{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-weight:600;transition:all .2s;box-shadow:var(--shadow)}
+        .theme-toggle-button:hover{transform:translateY(-1px);background:var(--input)}
+        .theme-label{display:none}@media(min-width:768px){.theme-label{display:inline-block}}
       `}</style>
-    </div>
+    </button>
   );
 }

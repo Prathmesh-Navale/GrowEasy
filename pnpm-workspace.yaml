@@ -5,5 +5,5 @@ packages:
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': false
-  esbuild: set this to true or false
+  esbuild: true
   prisma: false
