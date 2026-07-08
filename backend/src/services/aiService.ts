@@ -1,11 +1,15 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import { allowedCrmStatuses, allowedDataSources, crmFields } from '../constants/crmImportSchema.js';
 
 dotenv.config();
 
 export interface AiBatchPayload {
   headers: string[];
-  rows: Record<string, string>[];
+  rows: Array<{
+    sourceRowIndex: number;
+    values: Record<string, string>;
+  }>;
 }
 
 export interface AiBatchResult {
@@ -36,40 +40,37 @@ const openAiResponseSchema = z.object({
 
 const buildAiPrompt = (payload: AiBatchPayload) => {
   return [
-    'You are an AI extraction assistant for GrowEasy CRM.',
-    'Map each row to the official GrowEasy CRM schema using only the input values.',
-    'Do not hardcode source-specific mappings. Infer fields semantically.',
-    'Supported fields:',
-    JSON.stringify({
-      created_at: '',
-      name: '',
-      email: '',
-      country_code: '',
-      mobile_without_country_code: '',
-      company: '',
-      city: '',
-      state: '',
-      country: '',
-      lead_owner: '',
-      crm_status: '',
-      crm_note: '',
-      data_source: '',
-      possession_time: '',
-      description: ''
-    }),
-    'Allowed crm_status: GOOD_LEAD_FOLLOW_UP, DID_NOT_CONNECT, BAD_LEAD, SALE_DONE',
-    'Allowed data_source: leads_on_demand, meridian_tower, eden_park, varah_swamy, sarjapur_plots',
-    'Rules:',
-    '- Use the first email as email and remaining emails in crm_note.',
-    '- Use the first mobile number as mobile_without_country_code and remaining numbers in crm_note.',
-    '- created_at must parse with JavaScript new Date().',
-    '- If neither email nor mobile exists, mark row as skipped and provide reason.',
-    '- Do not invent values. Leave missing fields blank.',
-    '- Keep crm_note for remarks and extra useful unmapped information.',
-    '- Return JSON only, no markdown.',
+    'You are an AI extraction assistant for GrowEasy CRM CSV imports.',
+    'Your job is semantic field mapping, not exact header matching.',
+    '',
+    'Accept arbitrary CSV exports from Facebook Leads, Google Ads, Excel sheets, real estate CRMs, sales reports, marketing agencies, and manually created spreadsheets.',
+    'Understand synonyms and context. Examples: Customer Name, Lead Name, Full Name, Person, Prospect => name. Phone, Mobile, Contact Number, Cell, Mobile No. => mobile_without_country_code.',
+    '',
+    'Return JSON only with exactly this shape:',
+    '{"records":[{"sourceRowIndex":1,"status":"imported","confidence":0.95,"data":{...crm fields...}}],"skipped":[{"sourceRowIndex":2,"reason":"Missing both email and mobile number"}]}',
+    '',
+    'CRM fields:',
+    JSON.stringify(crmFields),
+    '',
+    `Allowed crm_status values: ${allowedCrmStatuses.join(', ')}. Leave crm_status blank if not confident. Never invent other values.`,
+    `Allowed data_source values: ${allowedDataSources.join(', ')}. Leave data_source blank if not confident. Never guess.`,
+    '',
+    'Validation and preservation rules:',
+    '- Process every input row exactly once, either in records or skipped.',
+    '- Preserve sourceRowIndex exactly as provided.',
+    '- Skip rows that contain neither an email address nor a mobile number.',
+    '- Use the first email as email; append remaining emails to crm_note.',
+    '- Use the first mobile number as mobile_without_country_code; append remaining phone numbers to crm_note.',
+    '- country_code should contain only the country dial code when available.',
+    '- created_at must be parseable by JavaScript new Date(created_at); otherwise leave blank.',
+    '- Do not invent values. Missing fields must be blank strings.',
+    '- Ignore irrelevant columns unless useful information should be preserved in crm_note.',
+    '- Put remarks, follow-up notes, extra comments, extra contacts, campaign metadata, and useful unmapped data into crm_note.',
+    '- Keep crm_note and description single-line. Escape unavoidable newlines as \\n.',
+    '',
     'Headers:',
     JSON.stringify(payload.headers),
-    'Rows:',
+    'Rows with stable source indexes:',
     JSON.stringify(payload.rows)
   ].join('\n');
 };
@@ -87,7 +88,8 @@ export const runAiBatch = async (payload: AiBatchPayload): Promise<AiBatchResult
   const body = {
     model: process.env.AI_MODEL ?? 'gpt-4o-mini',
     messages: [{ role: 'user', content: buildAiPrompt(payload) }],
-    max_tokens: 1200,
+    response_format: { type: 'json_object' },
+    max_tokens: Number(process.env.AI_MAX_TOKENS ?? 3000),
     temperature: 0
   };
 
@@ -110,11 +112,15 @@ export const runAiBatch = async (payload: AiBatchPayload): Promise<AiBatchResult
     return fallbackAiBatch(payload);
   }
 
-  const cleaned = content.trim().replace(/^```json|```$/g, '').trim();
-  const parsed = openAiResponseSchema.safeParse(JSON.parse(cleaned));
-  if (!parsed.success) {
+  try {
+    const cleaned = content.trim().replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+    const parsed = openAiResponseSchema.safeParse(JSON.parse(cleaned));
+    if (!parsed.success) {
+      return fallbackAiBatch(payload);
+    }
+
+    return parsed.data;
+  } catch {
     return fallbackAiBatch(payload);
   }
-
-  return parsed.data;
 };

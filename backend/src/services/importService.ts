@@ -8,10 +8,11 @@ import {
   persistBatchResults,
   updateImportJobStatus
 } from './importJobService.js';
-import { normalizeAiResponse, type ParsedLeadRecord } from '../utils/aiNormalization.js';
+import { hasUsableContact, normalizeAiResponse, type ParsedLeadRecord } from '../utils/aiNormalization.js';
+import { allowedCrmStatuses, allowedDataSources } from '../constants/crmImportSchema.js';
 
-const allowedStatuses = ['GOOD_LEAD_FOLLOW_UP', 'DID_NOT_CONNECT', 'BAD_LEAD', 'SALE_DONE'];
-const allowedDataSources = ['leads_on_demand', 'meridian_tower', 'eden_park', 'varah_swamy', 'sarjapur_plots'];
+const optionalCrmStatusSchema = z.union([z.enum(allowedCrmStatuses), z.literal('')]);
+const optionalDataSourceSchema = z.union([z.enum(allowedDataSources), z.literal('')]);
 
 const leadSchema = z.object({
   created_at: z.string().optional().default(''),
@@ -24,9 +25,9 @@ const leadSchema = z.object({
   state: z.string().optional().default(''),
   country: z.string().optional().default(''),
   lead_owner: z.string().optional().default(''),
-  crm_status: z.enum(allowedStatuses as [string, ...string[]]).optional().default(''),
+  crm_status: optionalCrmStatusSchema.optional().default(''),
   crm_note: z.string().optional().default(''),
-  data_source: z.enum(allowedDataSources as [string, ...string[]]).optional().default(''),
+  data_source: optionalDataSourceSchema.optional().default(''),
   possession_time: z.string().optional().default(''),
   description: z.string().optional().default('')
 });
@@ -45,18 +46,28 @@ const aiResponseSchema = z.object({
 });
 
 export const previewCsvService = async (file: Express.Multer.File) => {
-  const parsed = Papa.parse(file.buffer.toString('utf8'), { header: true, skipEmptyLines: true });
+  const parsed = parseCsv(file);
   const headers = parsed.meta.fields ?? [];
   return {
     headers,
-    rows: (parsed.data as Record<string, string>[]).slice(0, 25)
+    rows: (parsed.data as Record<string, string>[]).slice(0, 25),
+    totalRows: (parsed.data as Record<string, string>[]).length,
+    parseErrors: parsed.errors.map((error) => ({
+      row: error.row,
+      code: error.code,
+      message: error.message
+    }))
   };
 };
 
 export const processCsvService = async (file: Express.Multer.File) => {
-  const parsed = Papa.parse(file.buffer.toString('utf8'), { header: true, skipEmptyLines: true });
+  const parsed = parseCsv(file);
   const rows = parsed.data as Record<string, string>[];
   const headers = parsed.meta.fields ?? [];
+
+  if (!rows.length) {
+    throw new Error('CSV does not contain any data rows');
+  }
 
   const importJob = await createImportJob(file.originalname, file.size, rows.length);
   await updateImportJobStatus(importJob.id, 'PROCESSING');
@@ -79,13 +90,20 @@ export const processCsvService = async (file: Express.Multer.File) => {
   };
 
   for (const [batchIndex, batchRows] of batches.entries()) {
-    const batchPayload: AiBatchPayload = { headers, rows: batchRows };
+    const rowOffset = batchIndex * batchSize;
+    const batchPayload: AiBatchPayload = {
+      headers,
+      rows: batchRows.map((row, index) => ({
+        sourceRowIndex: rowOffset + index + 1,
+        values: row
+      }))
+    };
     let batchResponse: NormalizedAiBatchResult = { records: [], skipped: [] };
     let batchError: string | undefined;
 
     try {
       const rawResponse = await runAiBatch(batchPayload);
-      batchResponse.records = rawResponse.records.map((record) =>
+      const normalizedRecords = rawResponse.records.map((record) =>
         normalizeAiResponse({
           sourceRowIndex: record.sourceRowIndex,
           status: record.status,
@@ -109,15 +127,28 @@ export const processCsvService = async (file: Express.Multer.File) => {
           }
         })
       );
-      batchResponse.skipped = rawResponse.skipped;
+      batchResponse.records = [];
+      batchResponse.skipped = [...rawResponse.skipped];
+
+      normalizedRecords.forEach((record) => {
+        if (!hasUsableContact(record)) {
+          batchResponse.skipped.push({
+            sourceRowIndex: record.sourceRowIndex,
+            reason: 'Missing both email and mobile number'
+          });
+          return;
+        }
+
+        batchResponse.records.push({ ...record, status: 'imported' });
+      });
 
       if (!batchResponse.records.length && !batchResponse.skipped.length) {
-        const fallback = buildFallbackResult(batchRows);
+        const fallback = buildFallbackResult(batchPayload.rows);
         batchResponse = { records: fallback.records, skipped: fallback.skipped };
       }
     } catch (error) {
       batchError = error instanceof Error ? error.message : 'Unknown AI batch error';
-      const fallback = buildFallbackResult(batchRows);
+      const fallback = buildFallbackResult(batchPayload.rows);
       batchResponse = { records: fallback.records, skipped: fallback.skipped };
     }
 
@@ -147,40 +178,52 @@ export const processCsvService = async (file: Express.Multer.File) => {
     imported: totals.imported,
     skipped: totals.skipped,
     totalRows: rows.length,
+    parseErrors: parsed.errors,
     records: resultRecords,
     skippedRecords: resultSkipped
   };
 };
 
-const buildFallbackResult = (rows: Record<string, string>[]) => {
+const parseCsv = (file: Express.Multer.File) => {
+  return Papa.parse<Record<string, string>>(file.buffer.toString('utf8'), {
+    header: true,
+    skipEmptyLines: 'greedy',
+    transformHeader: (header) => header.trim(),
+    transform: (value) => String(value ?? '').trim()
+  });
+};
+
+type IndexedRow = AiBatchPayload['rows'][number];
+
+const buildFallbackResult = (rows: IndexedRow[]) => {
   const records: ParsedLeadRecord[] = [];
   const skipped: Array<{ sourceRowIndex: number; reason: string }> = [];
 
-  rows.forEach((row, index) => {
-    const email = extractEmail(row);
-    const mobile = extractMobile(row);
+  rows.forEach((row) => {
+    const email = extractEmail(row.values);
+    const mobile = extractMobile(row.values);
     if (!email && !mobile) {
-      skipped.push({ sourceRowIndex: index + 1, reason: 'Missing both email and mobile number' });
+      skipped.push({ sourceRowIndex: row.sourceRowIndex, reason: 'Missing both email and mobile number' });
       return;
     }
 
     const normalized = normalizeAiResponse({
-      sourceRowIndex: index + 1,
+      sourceRowIndex: row.sourceRowIndex,
       status: 'imported',
-      confidence: 0.82,
+      confidence: 0.45,
       data: {
-        created_at: extractDate(row),
-        name: extractName(row),
+        created_at: extractDate(row.values),
+        name: extractName(row.values),
         email,
         country_code: '',
         mobile_without_country_code: mobile,
-        company: extractCompany(row),
-        city: extractCity(row),
-        state: extractState(row),
-        country: extractCountry(row),
+        company: extractCompany(row.values),
+        city: extractCity(row.values),
+        state: extractState(row.values),
+        country: extractCountry(row.values),
         lead_owner: '',
         crm_status: '',
-        crm_note: buildNote(row),
+        crm_note: buildNote(row.values),
         data_source: '',
         possession_time: '',
         description: ''

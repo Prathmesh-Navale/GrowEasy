@@ -1,6 +1,6 @@
 import React from 'react';
-import LeadSourcesPage from '@/components/pages/LeadSourcesPage';
+import LeadSourcesRegistryPage from '@/components/pages/LeadSourcesRegistryPage';
 
 export default function Page() {
-  return <LeadSourcesPage />;
+  return <LeadSourcesRegistryPage />;
 }

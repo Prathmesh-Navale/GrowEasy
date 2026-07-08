@@ -94,3 +94,26 @@ model AiBatch {
 
   @@map("ai_batches")
 }
+
+model LeadSource {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  channelType     String
+  status          String   @default("DRAFT")
+  owner           String?
+  connectionType  String   @default("MANUAL")
+  syncFrequency   String   @default("ON_DEMAND")
+  webhookUrl      String?
+  duplicateRule   String   @default("EMAIL_OR_MOBILE")
+  autoAssignment  String   @default("ROUND_ROBIN")
+  qualityRules    Json?
+  fieldMappings   Json?
+  leadsToday      Int      @default(0)
+  conversionRate  Int      @default(0)
+  lastSyncLabel   String   @default("Not connected")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("lead_sources")
+}

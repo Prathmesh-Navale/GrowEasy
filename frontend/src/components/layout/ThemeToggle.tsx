@@ -55,8 +55,8 @@ export default function ThemeToggle() {
       <Icon size={18} />
       <span className="theme-label">{themeLabels[theme]}</span>
       <style jsx>{`
-        .theme-toggle-button{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-weight:600;transition:all .2s;box-shadow:var(--shadow)}
-        .theme-toggle-button:hover{transform:translateY(-1px);background:var(--input)}
+        .theme-toggle-button{height:44px;display:flex;align-items:center;gap:8px;padding:0 14px;border-radius:8px;border:1px solid var(--border);background:var(--input);color:var(--text);cursor:pointer;font-weight:760;transition:transform .18s,background .18s,border-color .18s;box-shadow:var(--shadow-tight)}
+        .theme-toggle-button:hover{transform:translateY(-1px);background:var(--accent-soft);border-color:var(--accent)}
         .theme-label{display:none}@media(min-width:768px){.theme-label{display:inline-block}}
       `}</style>
     </button>
