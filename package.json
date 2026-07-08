@@ -6,12 +6,13 @@
     "frontend",
     "backend"
   ],
-  "scripts": {
-    "dev": "concurrently \"npm run dev --workspace backend\" \"npm run dev --workspace frontend\"",
-    "build": "npm run build --workspace backend && npm run build --workspace frontend",
-    "test": "npm run test --workspace backend",
-    "prisma:generate": "prisma generate --schema ../prisma/schema.prisma"
-  },
+"scripts": {
+  "dev": "concurrently \"pnpm --dir backend dev\" \"pnpm --dir frontend dev\"",
+  "build": "pnpm --dir backend build && pnpm --dir frontend build",
+  "backend:build": "pnpm --dir backend build",
+  "frontend:build": "pnpm --dir frontend build",
+  "prisma:generate": "pnpm --dir backend exec prisma generate --schema ../prisma/schema.prisma"
+},
   "devDependencies": {
     "concurrently": "^8.2.2",
     "prisma": "^4.16.2"
