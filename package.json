@@ -9,6 +9,7 @@
 "scripts": {
   "dev": "concurrently \"pnpm --dir backend dev\" \"pnpm --dir frontend dev\"",
   "build": "pnpm --dir backend build && pnpm --dir frontend build",
+  "start": "pnpm --dir backend start",
   "backend:build": "pnpm --dir backend build",
   "frontend:build": "pnpm --dir frontend build",
   "prisma:generate": "pnpm --dir backend exec prisma generate --schema ../prisma/schema.prisma"
