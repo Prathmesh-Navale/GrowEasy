@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../backend/node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ImportJob {
+  id               String         @id @default(cuid())
+  fileName         String
+  fileSize         Int
+  totalRows        Int            @default(0)
+  totalImported    Int            @default(0)
+  totalSkipped     Int            @default(0)
+  status           String         @default("UPLOADED")
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  rawRows          ImportRawRow[]
+  crmLeads         CrmLead[]
+  skippedRecords   SkippedRecord[]
+  aiBatches        AiBatch[]
+
+  @@map("import_jobs")
+}
+
+model ImportRawRow {
+  id            String      @id @default(cuid())
+  importJobId   String
+  rowIndex      Int
+  rawData       Json
+  createdAt     DateTime    @default(now())
+  importJob     ImportJob   @relation(fields: [importJobId], references: [id])
+  crmLead       CrmLead?
+  skippedRecord SkippedRecord?
+
+  @@map("import_raw_rows")
+}
+
+model CrmLead {
+  id                         String      @id @default(cuid())
+  importJobId                String
+  rawRowId                   String?     @unique
+  createdAtLead              DateTime?   @default(now())
+  name                       String?
+  email                      String?
+  countryCode                String?
+  mobileWithoutCountryCode   String?
+  company                    String?
+  city                       String?
+  state                      String?
+  country                    String?
+  leadOwner                  String?
+  crmStatus                  String?
+  crmNote                    String?
+  dataSource                 String?
+  possessionTime             String?
+  description                String?
+  aiConfidence               Float?
+  createdAt                  DateTime    @default(now())
+  updatedAt                  DateTime    @updatedAt
+  importJob                  ImportJob   @relation(fields: [importJobId], references: [id])
+  rawRow                     ImportRawRow? @relation(fields: [rawRowId], references: [id])
+
+  @@map("crm_leads")
+}
+
+model SkippedRecord {
+  id            String       @id @default(cuid())
+  importJobId   String
+  rawRowId      String?      @unique
+  reason        String
+  rawData       Json
+  createdAt     DateTime     @default(now())
+  importJob     ImportJob    @relation(fields: [importJobId], references: [id])
+  rawRow        ImportRawRow? @relation(fields: [rawRowId], references: [id])
+
+  @@map("skipped_records")
+}
+
+model AiBatch {
+  id            String      @id @default(cuid())
+  importJobId   String
+  batchNumber   Int
+  status        String      @default("PENDING")
+  inputPayload  Json
+  outputPayload Json?
+  errorMessage  String?
+  retryCount    Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  importJob     ImportJob   @relation(fields: [importJobId], references: [id])
+
+  @@map("ai_batches")
+}

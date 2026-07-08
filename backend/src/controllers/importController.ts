@@ -1,0 +1,40 @@
+import { Request, Response } from 'express';
+import { previewCsvService, processCsvService } from '../services/importService.js';
+
+export const previewCsvController = async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    if (!req.file.originalname.toLowerCase().endsWith('.csv')) {
+      return res.status(400).json({ message: 'Invalid file format. Please upload a CSV file.' });
+    }
+
+    const preview = await previewCsvService(req.file);
+    return res.json(preview);
+  } catch (error) {
+    console.error('Preview error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to preview CSV';
+    return res.status(500).json({ message: `Preview failed: ${errorMessage}` });
+  }
+};
+
+export const processCsvController = async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    if (!req.file.originalname.toLowerCase().endsWith('.csv')) {
+      return res.status(400).json({ message: 'Invalid file format. Please upload a CSV file.' });
+    }
+
+    const result = await processCsvService(req.file);
+    return res.json(result);
+  } catch (error) {
+    console.error('Process error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to process CSV';
+    return res.status(500).json({ message: `Processing failed: ${errorMessage}` });
+  }
+};
