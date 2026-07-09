@@ -16,6 +16,39 @@ export async function processImport(file: File) {
   return res.json();
 }
 
+export type ImportHistoryJob = {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  totalRows: number;
+  totalImported: number;
+  totalSkipped: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  batchCount: number;
+  failedBatchCount: number;
+  skippedReasons: string[];
+};
+
+export async function listImportHistory(): Promise<{ jobs: ImportHistoryJob[] }> {
+  const res = await fetch(`${API_BASE_URL}/api/import/history`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export type CrmSchema = {
+  fields: string[];
+  statuses: string[];
+  dataSources: string[];
+};
+
+export async function getCrmSchema(): Promise<CrmSchema> {
+  const res = await fetch(`${API_BASE_URL}/api/import/schema`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 export type LeadSourcePayload = {
   name: string;
   description?: string;
@@ -47,4 +80,4 @@ export async function createLeadSource(payload: LeadSourcePayload) {
   return res.json();
 }
 
-export default { previewImport, processImport, listLeadSources, createLeadSource };
+export default { previewImport, processImport, listImportHistory, getCrmSchema, listLeadSources, createLeadSource };

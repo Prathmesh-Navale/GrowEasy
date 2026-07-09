@@ -311,9 +311,9 @@ export default function ImportCsvProPage() {
       )}
 
       <style jsx>{`
-        .import-page{display:flex;flex-direction:column;gap:18px}
+        .import-page{display:flex;flex-direction:column;gap:18px;min-width:0}
         h2,h3,p{margin:0}
-        .hero{display:flex;justify-content:space-between;gap:20px;align-items:stretch;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px;box-shadow:var(--shadow)}
+        .hero{display:flex;justify-content:space-between;gap:20px;align-items:stretch;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px;box-shadow:var(--shadow)}
         .eyebrow{color:var(--accent);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
         .hero h2{font-size:24px;color:var(--text);margin-top:4px}
         .hero p,.panel-head p,.source-card p,.rules p,.empty-state p{color:var(--muted);font-size:14px;margin-top:5px}
@@ -329,9 +329,9 @@ export default function ImportCsvProPage() {
         .step.active{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.14)}
         .step.active span,.step.done span{background:var(--accent);color:#fff}
         .error-banner{border:1px solid rgba(192,31,37,.3);background:rgba(192,31,37,.1);color:var(--danger);border-radius:8px;padding:11px 12px;display:flex;align-items:center;gap:8px}
-        .workspace{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
+        .workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,360px);gap:16px;align-items:start}
         .main-panel,.side-panel>div,.skipped-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow)}
-        .main-panel{padding:16px}
+        .main-panel{min-width:0;padding:16px}
         .panel-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}
         .panel-head h3,.side-panel h3{font-size:16px;color:var(--text)}
         .loading{display:flex;align-items:center;gap:8px;color:var(--accent);font-size:13px;font-weight:700}
@@ -349,7 +349,7 @@ export default function ImportCsvProPage() {
         .actions button{border:1px solid var(--border);background:var(--input);color:var(--text);border-radius:8px;min-height:40px;padding:0 14px;display:flex;align-items:center;gap:8px;cursor:pointer}
         .actions button:disabled{opacity:.55;cursor:not-allowed}
         .actions .primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:800}
-        .side-panel{display:flex;flex-direction:column;gap:12px}
+        .side-panel{display:flex;min-width:0;flex-direction:column;gap:12px}
         .side-panel>div{padding:14px}
         .source-card span,.rules h3,.mapping h3,.parse-errors h3{display:flex;align-items:center;gap:8px;color:var(--accent);font-size:13px;font-weight:800}
         .source-card strong{display:block;color:var(--text);font-size:16px;margin-top:8px}
@@ -362,7 +362,8 @@ export default function ImportCsvProPage() {
         .mapping strong{color:var(--text);font-size:13px}
         .skipped-panel{padding:16px}
         @media (max-width:1180px){.workspace{grid-template-columns:1fr}.hero{flex-direction:column}.hero-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
-        @media (max-width:760px){.stepper,.hero-metrics{grid-template-columns:1fr}.panel-head,.actions{flex-direction:column}.actions button{width:100%;justify-content:center}}
+        @media (max-width:760px){.stepper,.hero-metrics{grid-template-columns:1fr}.hero,.main-panel,.side-panel>div,.skipped-panel{padding:14px}.panel-head,.actions{flex-direction:column}.actions button{width:100%;justify-content:center;min-height:44px}.dropzone{min-height:240px;padding:22px}.upload-icon{width:56px;height:56px}.dropzone strong{text-wrap:balance}.mapping div,.result-card div{align-items:flex-start;flex-direction:column}.step{min-height:58px}}
+        @media (max-width:420px){.hero h2{font-size:21px}.hero p,.panel-head p,.source-card p,.rules p,.empty-state p{font-size:13px}.main-panel,.side-panel>div,.skipped-panel{padding:12px}.dropzone{min-height:220px;padding:18px}.step{padding:10px}}
       `}</style>
     </div>
   );

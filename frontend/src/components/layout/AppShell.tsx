@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 
@@ -7,12 +7,22 @@ type Props = { children: React.ReactNode };
 
 export default function AppShell({ children }: Props) {
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const sidebarWidth = isMobile ? 0 : collapsed ? 72 : 280;
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 640px)');
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   return (
     <div className="app-shell">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((s) => !s)} />
-      <div className="main-area" style={{ marginLeft: collapsed ? 72 : 260 }}>
-        <Header collapsed={collapsed} />
+      <div className="main-area" style={{ marginLeft: sidebarWidth }}>
+        <Header collapsed={collapsed || isMobile} />
         <main className="content">{children}</main>
       </div>
 
@@ -76,6 +86,8 @@ export default function AppShell({ children }: Props) {
           --shadow-tight: 0 14px 34px rgba(0,0,0,.28);
         }
         :global(body) {
+          width:100%;
+          overflow-x:hidden;
           background: var(--bg);
           color: var(--text);
           font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -107,6 +119,7 @@ export default function AppShell({ children }: Props) {
         .main-area {
           position:relative;
           flex:1;
+          min-width:0;
           display:flex;
           flex-direction:column;
           transition:margin-left .22s ease;
@@ -116,12 +129,13 @@ export default function AppShell({ children }: Props) {
           padding:26px;
           margin-top:72px;
           overflow:auto;
+          overflow-x:hidden;
           height:calc(100vh - 72px);
         }
         .content::before {
           content:"";
           position:fixed;
-          left:${collapsed ? '72px' : '260px'};
+          left:${sidebarWidth}px;
           right:0;
           top:72px;
           height:1px;
@@ -131,6 +145,18 @@ export default function AppShell({ children }: Props) {
         @media (max-width:768px){
           .main-area{ margin-left:72px !important }
           .content{padding:16px}
+        }
+        @media (max-width:640px){
+          .main-area{ margin-left:0 !important; width:100% }
+          .content{
+            height:auto;
+            min-height:100vh;
+            margin-top:76px;
+            padding:14px;
+            padding-bottom:96px;
+            overflow:visible;
+          }
+          .content::before{left:0;top:76px}
         }
       `}</style>
     </div>

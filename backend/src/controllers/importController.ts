@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { previewCsvService, processCsvService } from '../services/importService.js';
+import { listImportJobs } from '../services/importJobService.js';
+import { allowedCrmStatuses, allowedDataSources, crmFields } from '../constants/crmImportSchema.js';
 
 export const previewCsvController = async (req: Request, res: Response) => {
   try {
@@ -37,4 +39,23 @@ export const processCsvController = async (req: Request, res: Response) => {
     const errorMessage = error instanceof Error ? error.message : 'Failed to process CSV';
     return res.status(500).json({ message: `Processing failed: ${errorMessage}` });
   }
+};
+
+export const listImportHistoryController = async (_req: Request, res: Response) => {
+  try {
+    const jobs = await listImportJobs();
+    return res.json({ jobs });
+  } catch (error) {
+    console.error('Import history error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to load import history';
+    return res.status(500).json({ message: errorMessage });
+  }
+};
+
+export const getCrmSchemaController = (_req: Request, res: Response) => {
+  return res.json({
+    fields: crmFields,
+    statuses: allowedCrmStatuses,
+    dataSources: allowedDataSources
+  });
 };

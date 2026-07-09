@@ -415,12 +415,12 @@ export default function LeadSourcesRegistryPage() {
       )}
 
       <style jsx>{`
-        .lead-page{display:flex;flex-direction:column;gap:18px}
+        .lead-page{display:flex;flex-direction:column;gap:18px;min-width:0}
         h2,h3,h4,p{margin:0}
         .page-toolbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
         .page-toolbar h2{font-size:22px;color:var(--text)}
         .page-toolbar p,.section-head p,.empty-details p,.details-head p,.source-form p{color:var(--muted);font-size:14px;margin-top:4px}
-        .toolbar-actions{display:flex;gap:10px;align-items:center}
+        .toolbar-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
         .primary-action,.secondary-action,.table-row button,.form-footer button,.close-btn{border:1px solid var(--border);border-radius:8px;min-height:40px;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;cursor:pointer}
         .primary-action,.submit-btn{background:var(--accent);border-color:var(--accent);color:#fff;padding:0 14px;font-weight:700}
         .secondary-action{background:var(--input);color:var(--text);padding:0 14px}
@@ -431,7 +431,7 @@ export default function LeadSourcesRegistryPage() {
         .metrics span{color:var(--muted);font-size:12px}
         .metrics strong{color:var(--text);font-size:21px}
         .registry-layout{display:grid;grid-template-columns:minmax(0,1fr) 410px;gap:16px;align-items:start}
-        .source-table,.details-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;box-shadow:var(--shadow)}
+        .source-table,.details-panel{min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;box-shadow:var(--shadow)}
         .section-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:14px}
         .table{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:8px;overflow:hidden}
         .table-row{display:grid;grid-template-columns:minmax(220px,1.5fr) 120px 110px 110px 70px 110px;gap:12px;align-items:center;padding:12px;border-top:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px}
@@ -439,7 +439,8 @@ export default function LeadSourcesRegistryPage() {
         .table-row.header{background:var(--input);color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase}
         .table-row.active{box-shadow:inset 3px 0 0 var(--accent);background:rgba(37,99,235,.06)}
         .source-name{display:flex;align-items:center;gap:10px;min-width:0}
-        .source-name strong{display:block;color:var(--text);font-size:14px}
+        .source-name div{min-width:0}
+        .source-name strong{display:block;color:var(--text);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .source-name small{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .source-icon{width:36px;height:36px;min-width:36px;border-radius:8px;background:var(--input);color:var(--accent);display:flex;align-items:center;justify-content:center}
         .status,.health{border-radius:999px;padding:5px 9px;font-size:12px;text-transform:capitalize;white-space:nowrap;width:max-content}
@@ -471,14 +472,15 @@ export default function LeadSourcesRegistryPage() {
         .close-btn{width:40px;background:var(--input);color:var(--text)}
         .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
         label{display:flex;flex-direction:column;gap:6px;color:var(--text);font-size:13px;font-weight:700}
-        input,select,textarea{border:1px solid var(--border);background:var(--input);color:var(--text);border-radius:8px;padding:10px 12px;outline:none;font-weight:400}
+        input,select,textarea{width:100%;min-width:0;border:1px solid var(--border);background:var(--input);color:var(--text);border-radius:8px;padding:10px 12px;outline:none;font-weight:400}
         textarea{min-height:84px;resize:vertical}
         .wide{grid-column:1/-1}
         .form-footer{display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--border);padding-top:14px;margin-top:16px}
         .form-footer button{padding:0 14px;background:var(--input);color:var(--text)}
         .form-footer .submit-btn{background:var(--accent);color:#fff;border-color:var(--accent)}
         @media (max-width:1180px){.registry-layout{grid-template-columns:1fr}.details-panel{order:-1}.table-row{grid-template-columns:minmax(220px,1fr) 110px 100px 90px}.table-row span:nth-child(4),.table-row span:nth-child(5){display:none}}
-        @media (max-width:760px){.page-toolbar,.toolbar-actions,.details-head,.form-head{flex-direction:column;align-items:stretch}.metrics,.form-grid,.info-grid{grid-template-columns:1fr}.table-row,.table-row.header{grid-template-columns:1fr}.table-row.header{display:none}.table-row button{width:100%}.modal-backdrop{align-items:flex-start;padding:12px}}
+        @media (max-width:760px){.page-toolbar,.toolbar-actions,.details-head,.form-head{flex-direction:column;align-items:stretch}.primary-action,.secondary-action{width:100%}.metrics,.form-grid,.info-grid{grid-template-columns:1fr}.table-row,.table-row.header{grid-template-columns:1fr}.table-row.header{display:none}.table-row button{width:100%}.modal-backdrop{align-items:flex-start;padding:12px}.source-form{max-height:calc(100dvh - 24px);padding:14px}.form-footer{flex-direction:column}.form-footer button{width:100%;min-height:44px}.empty-details{padding:34px 16px}}
+        @media (max-width:420px){.source-table,.details-panel{padding:12px}.metrics div{padding:12px}.table-row{padding:11px}.health{width:100%;justify-content:center}.mapping-row{align-items:flex-start;flex-direction:column}}
       `}</style>
     </div>
   );

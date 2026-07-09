@@ -30,11 +30,11 @@ export default function DashboardPage() {
       </div>
 
       <style jsx>{`
-        .dashboard-page{display:flex;flex-direction:column;gap:18px}
+        .dashboard-page{display:flex;flex-direction:column;gap:18px;min-width:0}
         h2,h3,p{margin:0}
         h2{font-size:24px;color:var(--text)}
         .muted{color:var(--muted);font-size:14px;margin-top:4px}
-        .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+        .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));gap:14px}
         .stat-card{position:relative;overflow:hidden;padding:18px;border-radius:8px;background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow)}
         .stat-card::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--accent),var(--gold),var(--violet))}
         .stat-card span{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
@@ -43,6 +43,7 @@ export default function DashboardPage() {
         .ops-panel{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px;border-radius:8px;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow)}
         .ops-panel h3{font-size:16px;color:var(--text)}
         .pulse{border:1px solid color-mix(in srgb, var(--accent) 32%, var(--border));background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:8px 12px;font-weight:800;font-size:13px}
+        @media (max-width:640px){h2{font-size:21px}.stat-card,.ops-panel{padding:14px}.stat-card strong{font-size:26px}.ops-panel{align-items:flex-start;flex-direction:column}.pulse{width:100%;text-align:center}}
       `}</style>
     </div>
   );

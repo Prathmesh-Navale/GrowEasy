@@ -111,3 +111,44 @@ export const updateImportJobStatus = async (importJobId: string, status: string,
 
   return prisma.importJob.update({ where: { id: importJobId }, data });
 };
+
+export const listImportJobs = async () => {
+  const jobs: Array<any> = await prisma.importJob.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    include: {
+      aiBatches: {
+        select: {
+          id: true,
+          status: true,
+          retryCount: true,
+          errorMessage: true
+        }
+      },
+      skippedRecords: {
+        select: {
+          id: true,
+          reason: true,
+          createdAt: true
+        },
+        take: 5,
+        orderBy: { createdAt: 'desc' }
+      }
+    }
+  });
+
+  return jobs.map((job: any) => ({
+    id: job.id,
+    fileName: job.fileName,
+    fileSize: job.fileSize,
+    totalRows: job.totalRows,
+    totalImported: job.totalImported,
+    totalSkipped: job.totalSkipped,
+    status: job.status,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    batchCount: job.aiBatches.length,
+    failedBatchCount: job.aiBatches.filter((batch: any) => batch.status === 'FAILED').length,
+    skippedReasons: job.skippedRecords.map((record: any) => record.reason)
+  }));
+};
