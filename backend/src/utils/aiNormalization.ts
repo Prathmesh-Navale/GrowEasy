@@ -30,15 +30,66 @@ export type ParsedLeadRecord = z.infer<typeof parsedLeadRecordSchema>;
 
 const normalizeSingleLine = (value: string) => value.replace(/\r?\n/g, '\\n').replace(/\s+/g, ' ').trim();
 
+const normalizeToken = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+const statusAliases: Record<string, string> = {
+  GOOD_LEA: 'GOOD_LEAD_FOLLOW_UP',
+  GOOD_LEAD: 'GOOD_LEAD_FOLLOW_UP',
+  GOOD_LEAD_FOLLOW: 'GOOD_LEAD_FOLLOW_UP',
+  FOLLOW_UP: 'GOOD_LEAD_FOLLOW_UP',
+  DID_NOT: 'DID_NOT_CONNECT',
+  DID_NOT_CONN: 'DID_NOT_CONNECT',
+  DID_NOT_CONNECT: 'DID_NOT_CONNECT',
+  NOT_CONNECT: 'DID_NOT_CONNECT',
+  BAD: 'BAD_LEAD',
+  BAD_LEAD: 'BAD_LEAD',
+  SALE: 'SALE_DONE',
+  SALE_DON: 'SALE_DONE',
+  SALE_DONE: 'SALE_DONE'
+};
+
 const normalizeEnum = <T extends readonly string[]>(value: string, allowed: T) => {
   const trimmed = value.trim();
   return allowed.includes(trimmed) ? trimmed : '';
 };
 
+const normalizeCrmStatus = (value: string) => {
+  const exact = normalizeEnum(value, allowedCrmStatuses);
+  if (exact) return exact;
+
+  const token = normalizeToken(value);
+  if (!token || token.length < 3) return '';
+  return allowedCrmStatuses.includes(statusAliases[token] as any) ? statusAliases[token] : '';
+};
+
+const normalizeDataSource = (value: string) => {
+  const exact = normalizeEnum(value, allowedDataSources);
+  if (exact) return exact;
+
+  const token = value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  if (token.length < 5) return '';
+
+  const match = allowedDataSources.find((source) => source === token || source.startsWith(token) || token.startsWith(source));
+  return match ?? '';
+};
+
 const normalizeDate = (value: string) => {
   const trimmed = value.trim();
   if (!trimmed) return '';
-  return Number.isNaN(new Date(trimmed).getTime()) ? '' : trimmed;
+  if (/^#+$/.test(trimmed)) return '';
+
+  if (/^\d+(\.\d+)?$/.test(trimmed)) {
+    const serial = Number(trimmed);
+    if (serial > 20000 && serial < 80000) {
+      const utcDays = Math.floor(serial - 25569);
+      const utcValue = utcDays * 86400;
+      const dateInfo = new Date(utcValue * 1000);
+      return Number.isNaN(dateInfo.getTime()) ? '' : dateInfo.toISOString();
+    }
+  }
+
+  const date = new Date(trimmed);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
 };
 
 export const normalizeAiResponse = (input: ParsedLeadRecord): ParsedLeadRecord => {
@@ -49,8 +100,8 @@ export const normalizeAiResponse = (input: ParsedLeadRecord): ParsedLeadRecord =
     data: {
       ...normalized.data,
       created_at: normalizeDate(normalized.data.created_at),
-      crm_status: normalizeEnum(normalized.data.crm_status, allowedCrmStatuses),
-      data_source: normalizeEnum(normalized.data.data_source, allowedDataSources),
+      crm_status: normalizeCrmStatus(normalized.data.crm_status),
+      data_source: normalizeDataSource(normalized.data.data_source),
       crm_note: normalizeSingleLine(normalized.data.crm_note),
       description: normalizeSingleLine(normalized.data.description),
       name: normalizeSingleLine(normalized.data.name),

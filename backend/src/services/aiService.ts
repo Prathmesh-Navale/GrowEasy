@@ -25,6 +25,12 @@ export interface AiBatchResult {
   }>;
 }
 
+export type AiBatchRunResult = {
+  result: AiBatchResult;
+  retryCount: number;
+  error?: string;
+};
+
 const openAiResponseSchema = z.object({
   records: z.array(z.object({
     sourceRowIndex: z.number(),
@@ -79,10 +85,14 @@ const fallbackAiBatch = async (payload: AiBatchPayload): Promise<AiBatchResult> 
   return { records: [], skipped: [] };
 };
 
-export const runAiBatch = async (payload: AiBatchPayload): Promise<AiBatchResult> => {
+export const runAiBatchWithMeta = async (payload: AiBatchPayload): Promise<AiBatchRunResult> => {
   const openAiKey = process.env.OPENAI_API_KEY;
   if (!openAiKey) {
-    return fallbackAiBatch(payload);
+    return {
+      result: await fallbackAiBatch(payload),
+      retryCount: 0,
+      error: 'OPENAI_API_KEY is not configured'
+    };
   }
 
   const body = {
@@ -93,34 +103,56 @@ export const runAiBatch = async (payload: AiBatchPayload): Promise<AiBatchResult
     temperature: 0
   };
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${openAiKey}`
-    },
-    body: JSON.stringify(body)
-  });
+  const maxRetries = Number(process.env.AI_MAX_RETRIES ?? 2);
+  let lastError = '';
 
-  if (!response.ok) {
-    return fallbackAiBatch(payload);
-  }
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${openAiKey}`
+        },
+        body: JSON.stringify(body)
+      });
 
-  const json = await response.json();
-  const content = json?.choices?.[0]?.message?.content;
-  if (typeof content !== 'string') {
-    return fallbackAiBatch(payload);
-  }
+      if (!response.ok) {
+        lastError = `OpenAI request failed with status ${response.status}`;
+        continue;
+      }
 
-  try {
-    const cleaned = content.trim().replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
-    const parsed = openAiResponseSchema.safeParse(JSON.parse(cleaned));
-    if (!parsed.success) {
-      return fallbackAiBatch(payload);
+      const json = await response.json();
+      const content = json?.choices?.[0]?.message?.content;
+      if (typeof content !== 'string') {
+        lastError = 'OpenAI response did not include message content';
+        continue;
+      }
+
+      const cleaned = content.trim().replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+      const parsed = openAiResponseSchema.safeParse(JSON.parse(cleaned));
+      if (!parsed.success) {
+        lastError = parsed.error.message;
+        continue;
+      }
+
+      return {
+        result: parsed.data,
+        retryCount: attempt
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : 'Unknown OpenAI request error';
     }
-
-    return parsed.data;
-  } catch {
-    return fallbackAiBatch(payload);
   }
+
+  return {
+    result: await fallbackAiBatch(payload),
+    retryCount: maxRetries,
+    error: lastError || 'AI batch failed'
+  };
+};
+
+export const runAiBatch = async (payload: AiBatchPayload): Promise<AiBatchResult> => {
+  const run = await runAiBatchWithMeta(payload);
+  return run.result;
 };

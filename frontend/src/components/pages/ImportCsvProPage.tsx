@@ -18,9 +18,11 @@ import { previewImport, processImport } from '@/lib/api';
 type ImportResult = {
   imported: number;
   skipped: number;
+  importedCount?: number;
+  skippedCount?: number;
   totalRows: number;
-  records?: Array<{ data: Record<string, string> }>;
-  skippedRecords?: Array<{ sourceRowIndex?: number; reason: string; rawData?: Record<string, string> }>;
+  records?: Array<Record<string, string> | { data: Record<string, string> }>;
+  skippedRecords?: Array<{ row?: number; sourceRowIndex?: number; reason: string; rawData?: Record<string, string> }>;
   parseErrors?: Array<{ row?: number; code?: string; message: string }>;
 };
 
@@ -54,8 +56,8 @@ export default function ImportCsvProPage() {
 
   const summary = useMemo(() => {
     const total = result?.totalRows ?? totalRows;
-    const imported = result?.imported ?? 0;
-    const skipped = result?.skipped ?? 0;
+    const imported = result?.importedCount ?? result?.imported ?? 0;
+    const skipped = result?.skippedCount ?? result?.skipped ?? 0;
     const successRate = result ? Math.round((imported / Math.max(total, 1)) * 100) : 0;
     const mapped = expectedFields.filter((field) =>
       headers.some((header) => header.toLowerCase().replace(/\s+/g, '_').includes(field.split('_')[0]))
@@ -105,10 +107,10 @@ export default function ImportCsvProPage() {
     }
   };
 
-  const parsedRows = result?.records?.map((record) => record.data) ?? [];
+  const parsedRows = result?.records?.map((record) => ('data' in record ? record.data : record)) ?? [];
   const parsedColumns = Object.keys(parsedRows[0] ?? {});
   const skippedRows = result?.skippedRecords?.map((record) => ({
-    row: record.sourceRowIndex ?? '',
+    row: record.row ?? record.sourceRowIndex ?? '',
     reason: record.reason,
     rawData: record.rawData ? JSON.stringify(record.rawData) : ''
   })) ?? [];
@@ -291,8 +293,14 @@ export default function ImportCsvProPage() {
             <div className="result-card">
               <h3>Import Result</h3>
               <div><span>Total rows</span><strong>{summary.total}</strong></div>
-              <div><span>Imported</span><strong>{summary.imported}</strong></div>
-              <div><span>Skipped</span><strong>{summary.skipped}</strong></div>
+              <div><span>Imported records</span><strong>{summary.imported}</strong></div>
+              <div><span>Skipped records</span><strong>{summary.skipped}</strong></div>
+              {skippedRows.length > 0 && (
+                <div className="skip-reasons">
+                  <span>Skipped reasons</span>
+                  <strong>{Array.from(new Set(skippedRows.map((row) => row.reason))).join(', ')}</strong>
+                </div>
+              )}
             </div>
           )}
         </aside>
