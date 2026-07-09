@@ -98,7 +98,7 @@ export const previewCsvService = async (file: Express.Multer.File) => {
   };
 };
 
-export const processCsvService = async (file: Express.Multer.File) => {
+export const processCsvService = async (file: Express.Multer.File, leadSourceId?: string) => {
   const parsed = parseCsv(file);
   const rows = parsed.data as Record<string, string>[];
   const headers = parsed.meta.fields ?? [];
@@ -107,7 +107,7 @@ export const processCsvService = async (file: Express.Multer.File) => {
     throw new Error('CSV does not contain any data rows');
   }
 
-  const importJob = await createImportJob(file.originalname, file.size, rows.length);
+  const importJob = await createImportJob(file.originalname, file.size, rows.length, leadSourceId);
   await updateImportJobStatus(importJob.id, 'PROCESSING');
 
   const batchSize = Number(process.env.BATCH_SIZE ?? 10);
@@ -207,7 +207,7 @@ export const processCsvService = async (file: Express.Multer.File) => {
     skipped: resultSkipped.length
   };
 
-  await persistBatchResults(importJob.id, savedRawRows, { imported: totals.imported, skipped: totals.skipped, totalRows: rows.length, records: resultRecords, skippedRecords: resultSkipped });
+  await persistBatchResults(importJob.id, savedRawRows, { leadSourceId, imported: totals.imported, skipped: totals.skipped, totalRows: rows.length, records: resultRecords, skippedRecords: resultSkipped });
   await updateImportJobStatus(importJob.id, 'COMPLETED', totals);
 
   const parsedResult = aiResponseSchema.safeParse({ records: resultRecords, skipped: resultSkipped });
@@ -222,6 +222,7 @@ export const processCsvService = async (file: Express.Multer.File) => {
     importedCount: totals.imported,
     skippedCount: totals.skipped,
     totalRows: rows.length,
+    leadSourceId: leadSourceId || '',
     parseErrors: parsed.errors,
     records: resultRecords.map((record) => record.data),
     skippedRecords: resultSkipped.map((record) => ({

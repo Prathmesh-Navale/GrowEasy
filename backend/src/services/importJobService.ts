@@ -3,6 +3,7 @@ import { AiBatchPayload, AiBatchResult } from './aiService.js';
 import { normalizeAiResponse, type ParsedLeadRecord } from '../utils/aiNormalization.js';
 
 export type ImportResultPayload = {
+  leadSourceId?: string;
   imported: number;
   skipped: number;
   totalRows: number;
@@ -16,9 +17,10 @@ export type SavedRawRow = {
   rawData: Record<string, string>;
 };
 
-export const createImportJob = async (fileName: string, fileSize: number, totalRows: number) => {
+export const createImportJob = async (fileName: string, fileSize: number, totalRows: number, leadSourceId?: string) => {
   return prisma.importJob.create({
     data: {
+      leadSourceId: leadSourceId || null,
       fileName,
       fileSize,
       totalRows,
@@ -68,6 +70,7 @@ export const persistBatchResults = async (
 
   const leadRecords = results.records.map((record) => ({
     importJobId,
+    leadSourceId: results.leadSourceId,
     rawRowId: rowByIndex.get(record.sourceRowIndex),
     createdAtLead: record.data.created_at ? new Date(record.data.created_at) : undefined,
     name: record.data.name,
@@ -133,6 +136,13 @@ export const listImportJobs = async () => {
         },
         take: 5,
         orderBy: { createdAt: 'desc' }
+      },
+      leadSource: {
+        select: {
+          id: true,
+          name: true,
+          channelType: true
+        }
       }
     }
   });
@@ -145,6 +155,7 @@ export const listImportJobs = async () => {
     totalImported: job.totalImported,
     totalSkipped: job.totalSkipped,
     status: job.status,
+    leadSource: job.leadSource,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     batchCount: job.aiBatches.length,

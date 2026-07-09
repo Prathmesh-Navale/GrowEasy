@@ -87,6 +87,7 @@ export default function ImportHistoryPage() {
               <span>Rows</span>
               <span>Imported</span>
               <span>Skipped</span>
+              <span>Source</span>
               <span>Batches</span>
               <span>Created</span>
             </div>
@@ -103,6 +104,7 @@ export default function ImportHistoryPage() {
                 <span>{job.totalRows}</span>
                 <span>{job.totalImported}</span>
                 <span>{job.totalSkipped}</span>
+                <span>{job.leadSource?.name ?? 'Unassigned'}</span>
                 <span>{job.batchCount}{job.failedBatchCount ? ` (${job.failedBatchCount} failed)` : ''}</span>
                 <span>{formatDate(job.createdAt)}</span>
                 {job.skippedReasons.length > 0 && (
@@ -117,7 +119,7 @@ export default function ImportHistoryPage() {
           <div className="empty-state">
             <FileSpreadsheet size={30} />
             <h3>No imports recorded yet</h3>
-            <p className="muted">Complete an import from AI CSV Importer and it will be listed here automatically.</p>
+            <p className="muted">Complete an import from AI Lead Importer and it will be listed here automatically.</p>
           </div>
         )}
       </section>
@@ -140,7 +142,7 @@ export default function ImportHistoryPage() {
         .metrics strong{color:var(--text);font-size:21px}
         .history-card{min-width:0;border-radius:8px;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden}
         .table{display:flex;flex-direction:column}
-        .row{display:grid;grid-template-columns:minmax(230px,1.5fr) 110px 80px 90px 80px 100px 170px;gap:12px;align-items:center;border-top:1px solid var(--border);background:var(--card);padding:13px;color:var(--text);font-size:13px}
+        .row{display:grid;grid-template-columns:minmax(230px,1.5fr) 110px 80px 90px 80px 120px 100px 170px;gap:12px;align-items:center;border-top:1px solid var(--border);background:var(--card);padding:13px;color:var(--text);font-size:13px}
         .row:first-child{border-top:0}
         .row.header{background:var(--input);color:var(--muted);font-size:12px;font-weight:800;text-transform:uppercase}
         .file-cell{display:flex;align-items:center;gap:10px;min-width:0}
@@ -157,7 +159,7 @@ export default function ImportHistoryPage() {
         .empty-state{min-height:260px;padding:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted)}
         .empty-state svg{color:var(--accent);margin-bottom:12px}
         .empty-state h3{color:var(--text);font-size:17px}
-        @media (max-width:1000px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.row,.row.header{grid-template-columns:1fr 90px 70px 80px}.row span:nth-child(5),.row span:nth-child(6),.row span:nth-child(7){display:none}}
+        @media (max-width:1000px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.row,.row.header{grid-template-columns:1fr 90px 70px 80px}.row span:nth-child(5),.row span:nth-child(6),.row span:nth-child(7),.row span:nth-child(8){display:none}}
         @media (max-width:680px){.toolbar{flex-direction:column}.toolbar button{width:100%;justify-content:center;min-height:44px}.metrics{grid-template-columns:1fr}.row,.row.header{grid-template-columns:1fr}.row.header{display:none}.row{gap:9px;padding:12px}.reasons{padding-left:0}.empty-state{min-height:220px;padding:22px}}
         @media (max-width:420px){h2{font-size:21px}.metrics div{padding:12px}.file-cell{align-items:flex-start}.file-icon{width:32px;height:32px;min-width:32px}}
       `}</style>

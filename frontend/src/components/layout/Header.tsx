@@ -10,7 +10,7 @@ export default function Header({ collapsed }: Props) {
   const titleMap: Record<string, { title: string; subtitle?: string }> = {
     '/dashboard': { title: 'Dashboard', subtitle: 'Overview' },
     '/lead-sources': { title: 'Lead Sources', subtitle: 'Connected sources' },
-    '/import-csv': { title: 'AI CSV Importer', subtitle: 'Upload, preview, import' },
+    '/import-csv': { title: 'AI Lead Importer', subtitle: 'Upload, preview, import' },
     '/import-history': { title: 'Import History', subtitle: 'Previous import batches' },
     '/crm-fields': { title: 'CRM Fields', subtitle: 'Mapping and normalization' },
     '/settings': { title: 'Settings', subtitle: 'CRM fields & configuration' },

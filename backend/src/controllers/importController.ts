@@ -32,7 +32,8 @@ export const processCsvController = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid file format. Please upload a CSV file.' });
     }
 
-    const result = await processCsvService(req.file);
+    const leadSourceId = typeof req.body?.leadSourceId === 'string' ? req.body.leadSourceId.trim() : '';
+    const result = await processCsvService(req.file, leadSourceId || undefined);
     return res.json(result);
   } catch (error) {
     console.error('Process error:', error);

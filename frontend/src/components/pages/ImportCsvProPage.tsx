@@ -1,19 +1,22 @@
 "use client";
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   ArrowRight,
   CheckCircle2,
   Database,
+  ExternalLink,
   FileSpreadsheet,
   Loader2,
+  Maximize2,
+  Minimize2,
   ShieldCheck,
   Sparkles,
   Upload,
   XCircle
 } from 'lucide-react';
 import DataTable from '@/components/import/DataTable';
-import { previewImport, processImport } from '@/lib/api';
+import { listLeadSources, previewImport, processImport, type LeadSourceRecord } from '@/lib/api';
 
 type ImportResult = {
   imported: number;
@@ -53,6 +56,31 @@ export default function ImportCsvProPage() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [processingStage, setProcessingStage] = useState('');
+  const [tableMode, setTableMode] = useState<'inline' | 'popout' | 'maximized'>('inline');
+  const [leadSources, setLeadSources] = useState<LeadSourceRecord[]>([]);
+  const [selectedLeadSourceId, setSelectedLeadSourceId] = useState('');
+  const [sourceError, setSourceError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    listLeadSources()
+      .then((data) => {
+        if (!mounted) return;
+        const sources = Array.isArray(data.sources) ? data.sources : [];
+        setLeadSources(sources);
+        setSelectedLeadSourceId((current) => current || sources[0]?.id || '');
+      })
+      .catch((loadError) => {
+        if (!mounted) return;
+        setSourceError(loadError instanceof Error ? loadError.message : 'Unable to load lead sources.');
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const summary = useMemo(() => {
     const total = result?.totalRows ?? totalRows;
@@ -96,31 +124,58 @@ export default function ImportCsvProPage() {
     if (!file) return;
     setLoading(true);
     setError('');
+    setProcessingProgress(8);
+    setProcessingStage('Uploading file to AI pipeline');
+    const stages = [
+      'Saving raw rows',
+      'Preparing AI batches',
+      'Mapping CRM fields',
+      'Validating contacts',
+      'Saving imported records'
+    ];
+    let stageIndex = 0;
+    const progressTimer = window.setInterval(() => {
+      setProcessingProgress((current) => Math.min(current + 9, 92));
+      setProcessingStage(stages[Math.min(stageIndex, stages.length - 1)]);
+      stageIndex += 1;
+    }, 900);
     try {
-      const data = await processImport(file);
+      const data = await processImport(file, selectedLeadSourceId);
+      window.clearInterval(progressTimer);
+      setProcessingProgress(100);
+      setProcessingStage('Import complete');
       setResult(data);
       setStep(4);
     } catch (err) {
+      window.clearInterval(progressTimer);
       setError(err instanceof Error ? err.message : 'Import failed');
     } finally {
-      setLoading(false);
+      window.setTimeout(() => {
+        setLoading(false);
+        setProcessingProgress(0);
+        setProcessingStage('');
+      }, 500);
     }
   };
 
   const parsedRows = result?.records?.map((record) => ('data' in record ? record.data : record)) ?? [];
   const parsedColumns = Object.keys(parsedRows[0] ?? {});
+  const visibleRows = step === 4 && parsedRows.length ? parsedRows : previewRows;
+  const visibleColumns = step === 4 && parsedColumns.length ? parsedColumns : headers;
+  const hasVisibleTable = step !== 1 && visibleRows.length > 0 && visibleColumns.length > 0;
   const skippedRows = result?.skippedRecords?.map((record) => ({
     row: record.row ?? record.sourceRowIndex ?? '',
     reason: record.reason,
     rawData: record.rawData ? JSON.stringify(record.rawData) : ''
   })) ?? [];
+  const selectedLeadSource = leadSources.find((source) => source.id === selectedLeadSourceId);
 
   return (
     <div className="import-page">
       <div className="hero">
         <div>
           <span className="eyebrow">Lead Source Import</span>
-          <h2>AI CSV Importer</h2>
+          <h2>AI Lead Importer</h2>
           <p>Upload lead files, preview the raw data, validate CRM mapping, and import clean records into GrowEasy.</p>
         </div>
         <div className="hero-metrics">
@@ -154,6 +209,26 @@ export default function ImportCsvProPage() {
         </div>
       )}
 
+      {sourceError && (
+        <div className="error-banner">
+          <AlertCircle size={18} />
+          <span>Lead source list unavailable. You can still import, but records will not be linked to a source.</span>
+        </div>
+      )}
+
+      {loading && step === 3 && (
+        <section className="progress-panel" aria-live="polite">
+          <div>
+            <span><Sparkles size={17} /> AI Processing</span>
+            <strong>{processingStage || 'Starting import'}</strong>
+          </div>
+          <div className="progress-track">
+            <div style={{ width: `${processingProgress}%` }} />
+          </div>
+          <b>{processingProgress}%</b>
+        </section>
+      )}
+
       <div className="workspace">
         <section className="main-panel">
           <div className="panel-head">
@@ -165,24 +240,53 @@ export default function ImportCsvProPage() {
           </div>
 
           {step === 1 && (
-            <label
-              className="dropzone"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                selectFile(event.dataTransfer.files?.[0] ?? null);
-              }}
-            >
-              <input type="file" accept=".csv" onChange={(event) => selectFile(event.target.files?.[0] ?? null)} />
-              <span className="upload-icon"><Upload size={30} /></span>
-              <strong>Drop your CSV file here</strong>
-              <p>or click to browse. Use one row per lead with headers in the first row.</p>
-              <small>Maximum backend upload size is 5 MB.</small>
-            </label>
+            <div className="upload-stack">
+              <label className="source-select">
+                Lead source for this import
+                <select
+                  value={selectedLeadSourceId}
+                  onChange={(event) => setSelectedLeadSourceId(event.target.value)}
+                >
+                  <option value="">No source selected</option>
+                  {leadSources.map((source) => (
+                    <option key={source.id} value={source.id}>
+                      {source.name} - {source.channelType}
+                    </option>
+                  ))}
+                </select>
+                <span>Imported records will be saved under the selected source.</span>
+              </label>
+              <label
+                className="dropzone"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  selectFile(event.dataTransfer.files?.[0] ?? null);
+                }}
+              >
+                <input type="file" accept=".csv" onChange={(event) => selectFile(event.target.files?.[0] ?? null)} />
+                <span className="upload-icon"><Upload size={30} /></span>
+                <strong>Drop your CSV file here</strong>
+                <p>or click to browse. Use one row per lead with headers in the first row.</p>
+                <small>Maximum backend upload size is 5 MB.</small>
+              </label>
+            </div>
           )}
 
           {step !== 1 && (
             <div className="table-shell">
+              {hasVisibleTable && (
+                <div className="table-tools">
+                  <button type="button" onClick={() => setTableMode('popout')}>
+                    <ExternalLink size={15} />
+                    Pop out
+                  </button>
+                  <button type="button" onClick={() => setTableMode('maximized')}>
+                    <Maximize2 size={15} />
+                    Maximize
+                  </button>
+                </div>
+              )}
               {step === 4 && parsedRows.length ? (
                 <DataTable columns={parsedColumns} rows={parsedRows} maxHeight={440} />
               ) : previewRows.length ? (
@@ -232,8 +336,12 @@ export default function ImportCsvProPage() {
         <aside className="side-panel">
           <div className="source-card">
             <span><Database size={17} /> Destination</span>
-            <strong>GrowEasy CRM Leads</strong>
-            <p>Imported leads are normalized, deduplicated, and saved with original row history.</p>
+            <strong>{selectedLeadSource ? selectedLeadSource.name : 'GrowEasy CRM Leads'}</strong>
+            <p>
+              {selectedLeadSource
+                ? `Records will be linked to ${selectedLeadSource.channelType} source history.`
+                : 'Imported leads are normalized, deduplicated, and saved with original row history.'}
+            </p>
           </div>
 
           {step === 3 && (
@@ -256,6 +364,10 @@ export default function ImportCsvProPage() {
             <div className={headers.length ? 'ok' : ''}>
               {headers.length ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
               Headers detected
+            </div>
+            <div className={selectedLeadSourceId ? 'ok' : ''}>
+              {selectedLeadSourceId ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+              Lead source selected
             </div>
             <div className={summary.mapped >= 3 ? 'ok' : ''}>
               {summary.mapped >= 3 ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
@@ -318,6 +430,38 @@ export default function ImportCsvProPage() {
         </section>
       )}
 
+      {tableMode !== 'inline' && hasVisibleTable && (
+        <div className={`table-overlay ${tableMode}`} role="dialog" aria-modal="true" aria-label="CSV table preview">
+          <section className="table-window">
+            <div className="table-window-head">
+              <div>
+                <h3>{step === 4 ? 'Imported Records' : 'CSV Preview'}</h3>
+                <p>{file?.name ?? 'Current CSV table'}</p>
+              </div>
+              <div>
+                {tableMode === 'popout' && (
+                  <button type="button" onClick={() => setTableMode('maximized')}>
+                    <Maximize2 size={15} />
+                    Maximize
+                  </button>
+                )}
+                {tableMode === 'maximized' && (
+                  <button type="button" onClick={() => setTableMode('popout')}>
+                    <Minimize2 size={15} />
+                    Pop out
+                  </button>
+                )}
+                <button type="button" onClick={() => setTableMode('inline')}>
+                  <Minimize2 size={15} />
+                  Pop in
+                </button>
+              </div>
+            </div>
+            <DataTable columns={visibleColumns} rows={visibleRows} maxHeight={tableMode === 'maximized' ? 680 : 520} />
+          </section>
+        </div>
+      )}
+
       <style jsx>{`
         .import-page{display:flex;flex-direction:column;gap:18px;min-width:0}
         h2,h3,p{margin:0}
@@ -337,6 +481,12 @@ export default function ImportCsvProPage() {
         .step.active{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.14)}
         .step.active span,.step.done span{background:var(--accent);color:#fff}
         .error-banner{border:1px solid rgba(192,31,37,.3);background:rgba(192,31,37,.1);color:var(--danger);border-radius:8px;padding:11px 12px;display:flex;align-items:center;gap:8px}
+        .progress-panel{display:grid;grid-template-columns:minmax(180px,280px) minmax(0,1fr) auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;box-shadow:var(--shadow)}
+        .progress-panel span{display:flex;align-items:center;gap:8px;color:var(--accent);font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+        .progress-panel strong{display:block;color:var(--text);font-size:14px;margin-top:5px}
+        .progress-panel b{color:var(--text);font-size:18px}
+        .progress-track{height:10px;border-radius:999px;background:var(--input);border:1px solid var(--border);overflow:hidden}
+        .progress-track div{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--violet));transition:width .35s ease}
         .workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,360px);gap:16px;align-items:start}
         .main-panel,.side-panel>div,.skipped-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow)}
         .main-panel{min-width:0;padding:16px}
@@ -346,11 +496,18 @@ export default function ImportCsvProPage() {
         .spin{animation:spin .9s linear infinite}
         @keyframes spin{to{transform:rotate(360deg)}}
         .dropzone{min-height:310px;border:1px dashed var(--border);border-radius:8px;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;cursor:pointer}
+        .upload-stack{display:flex;flex-direction:column;gap:14px}
+        .source-select{display:flex;flex-direction:column;gap:7px;border:1px solid var(--border);border-radius:8px;background:var(--card);padding:14px;color:var(--text);font-size:13px;font-weight:800}
+        .source-select select{min-height:44px;border:1px solid var(--border);border-radius:8px;background:var(--input);color:var(--text);padding:0 12px;outline:none}
+        .source-select select:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+        .source-select span{color:var(--muted);font-size:12px;font-weight:600}
         .dropzone input{display:none}
         .upload-icon{width:64px;height:64px;border-radius:16px;background:rgba(37,99,235,.12);color:var(--accent);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
         .dropzone strong{font-size:18px;color:var(--text)}
         .dropzone small{color:var(--muted);margin-top:12px}
         .table-shell{min-height:310px}
+        .table-tools{display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px}
+        .table-tools button,.table-window-head button{min-height:38px;border:1px solid var(--border);border-radius:8px;background:var(--input);color:var(--text);display:inline-flex;align-items:center;gap:7px;padding:0 11px;cursor:pointer;font-weight:750}
         .empty-state{min-height:310px;border:1px dashed var(--border);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);text-align:center}
         .empty-state strong{color:var(--text);margin-top:8px}
         .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
@@ -369,8 +526,17 @@ export default function ImportCsvProPage() {
         .mapping span{color:var(--muted);font-size:13px}
         .mapping strong{color:var(--text);font-size:13px}
         .skipped-panel{padding:16px}
+        .table-overlay{position:fixed;inset:0;z-index:90;background:rgba(2,6,23,.62);display:flex;padding:22px}
+        .table-overlay.popout{align-items:center;justify-content:center}
+        .table-overlay.maximized{align-items:stretch;justify-content:stretch;padding:12px}
+        .table-window{width:min(1120px,100%);max-height:calc(100dvh - 44px);overflow:hidden;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 24px 90px rgba(0,0,0,.38);padding:16px}
+        .table-overlay.maximized .table-window{width:100%;max-height:calc(100dvh - 24px)}
+        .table-window-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
+        .table-window-head h3{font-size:16px;color:var(--text);margin:0}
+        .table-window-head p{font-size:13px;color:var(--muted);margin-top:4px}
+        .table-window-head>div:last-child{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
         @media (max-width:1180px){.workspace{grid-template-columns:1fr}.hero{flex-direction:column}.hero-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
-        @media (max-width:760px){.stepper,.hero-metrics{grid-template-columns:1fr}.hero,.main-panel,.side-panel>div,.skipped-panel{padding:14px}.panel-head,.actions{flex-direction:column}.actions button{width:100%;justify-content:center;min-height:44px}.dropzone{min-height:240px;padding:22px}.upload-icon{width:56px;height:56px}.dropzone strong{text-wrap:balance}.mapping div,.result-card div{align-items:flex-start;flex-direction:column}.step{min-height:58px}}
+        @media (max-width:760px){.stepper,.hero-metrics,.progress-panel{grid-template-columns:1fr}.hero,.main-panel,.side-panel>div,.skipped-panel{padding:14px}.panel-head,.actions,.table-window-head{flex-direction:column}.actions button,.table-tools button,.table-window-head button{width:100%;justify-content:center;min-height:44px}.table-tools{flex-direction:column}.dropzone{min-height:240px;padding:22px}.upload-icon{width:56px;height:56px}.dropzone strong{text-wrap:balance}.mapping div,.result-card div{align-items:flex-start;flex-direction:column}.step{min-height:58px}.table-overlay{padding:10px}.table-window{padding:12px;max-height:calc(100dvh - 20px)}}
         @media (max-width:420px){.hero h2{font-size:21px}.hero p,.panel-head p,.source-card p,.rules p,.empty-state p{font-size:13px}.main-panel,.side-panel>div,.skipped-panel{padding:12px}.dropzone{min-height:220px;padding:18px}.step{padding:10px}}
       `}</style>
     </div>

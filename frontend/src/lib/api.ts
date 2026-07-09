@@ -8,9 +8,10 @@ export async function previewImport(file: File) {
   return res.json();
 }
 
-export async function processImport(file: File) {
+export async function processImport(file: File, leadSourceId?: string) {
   const form = new FormData();
   form.append('file', file);
+  if (leadSourceId) form.append('leadSourceId', leadSourceId);
   const res = await fetch(`${API_BASE_URL}/api/import/process`, { method: 'POST', body: form });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -18,6 +19,11 @@ export async function processImport(file: File) {
 
 export type ImportHistoryJob = {
   id: string;
+  leadSource?: {
+    id: string;
+    name: string;
+    channelType: string;
+  } | null;
   fileName: string;
   fileSize: number;
   totalRows: number;
@@ -64,7 +70,15 @@ export type LeadSourcePayload = {
   fieldMappings: Record<string, string>;
 };
 
-export async function listLeadSources() {
+export type LeadSourceRecord = LeadSourcePayload & {
+  id: string;
+  leadsToday?: number;
+  conversionRate?: number;
+  lastSyncLabel?: string;
+  createdAt?: string;
+};
+
+export async function listLeadSources(): Promise<{ sources: LeadSourceRecord[] }> {
   const res = await fetch(`${API_BASE_URL}/api/lead-sources`, { cache: 'no-store' });
   if (!res.ok) throw new Error(await res.text());
   return res.json();

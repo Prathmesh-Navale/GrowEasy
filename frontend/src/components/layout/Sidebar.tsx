@@ -33,7 +33,7 @@ const storageKey = 'groweasy-theme';
 const menu = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Lead Sources', href: '/lead-sources', icon: FolderKanban },
-  { label: 'AI CSV Importer', href: '/import-csv', icon: Sparkles },
+  { label: 'AI Lead Importer', href: '/import-csv', icon: Sparkles },
   { label: 'Import History', href: '/import-history', icon: History },
   { label: 'CRM Fields', href: '/crm-fields', icon: Database },
   { label: 'Settings', href: '/settings', icon: Settings },
@@ -294,8 +294,8 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
                   transition={{ duration: 0.16 }}
                   className="min-w-0"
                 >
-                  <p className="truncate text-sm font-semibold tracking-[-0.01em] text-[#F8FAFC]">Jordan Davis</p>
-                  <p className="truncate text-xs font-medium text-[#94A3B8]">jordan@groweasy.ai</p>
+                  <p className="truncate text-sm font-semibold tracking-[-0.01em] text-[#F8FAFC]">Prathmesh Navale</p>
+                  <p className="truncate text-xs font-medium text-[#94A3B8]">navaleprathmesh14@gmail.com</p>
                 </motion.div>
               )}
             </AnimatePresence>
